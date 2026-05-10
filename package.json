@@ -1,0 +1,17 @@
+{
+  "name": "kavabanga-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server/server.js",
+    "start": "node server/server.js",
+    "flask": "powershell -ExecutionPolicy Bypass -File ./start-flask.ps1",
+    "kitchen": "powershell -ExecutionPolicy Bypass -File ./run-kitchen.ps1"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2"
+  }
+}

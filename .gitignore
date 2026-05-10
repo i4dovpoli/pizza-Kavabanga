@@ -1,0 +1,9 @@
+.env
+node_modules/
+*.log
+__pycache__/
+*.pyc
+server/*.sqlite
+server/*.sqlite-shm
+server/*.sqlite-wal
+java/*.class

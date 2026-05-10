@@ -2,10 +2,7 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 if (-not $env:KAVABANGA_API_BASE) {
-  Write-Host "Set KAVABANGA_API_BASE to your Render URL first."
-  Write-Host "Example:"
-  Write-Host '$env:KAVABANGA_API_BASE="https://kavabanga-api.onrender.com"'
-  exit 1
+  $env:KAVABANGA_API_BASE = "https://pizza-kavabanga.onrender.com"
 }
 
 javac -encoding UTF-8 java\KitchenOrdersApp.java

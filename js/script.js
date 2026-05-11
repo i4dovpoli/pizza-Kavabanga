@@ -722,13 +722,19 @@ function sectionTemplate(section, items) {
 function renderGrid() {
   if (!els.grid) return;
   const q = query.toLowerCase();
+  const favoriteSet = new Set(favoriteIds());
   const sections = MENU_SECTIONS.map((section) => ({
     ...section,
-    items: PRODUCTS.filter((p) => p.type === section.type && (currentTab === "all" || currentTab === section.type) && productMatchesQuery(p, q)),
+    items: PRODUCTS.filter(
+      (p) =>
+        p.type === section.type &&
+        (currentTab === "all" || currentTab === section.type || (currentTab === "favorites" && favoriteSet.has(p.id))) &&
+        productMatchesQuery(p, q)
+    ),
   })).filter((section) => section.items.length);
 
   if (!sections.length) {
-    els.grid.innerHTML = `<div class="about__card menu-empty" style="grid-column:1 / -1;"><h3 class="section-title">Нічого не знайдено</h3></div>`;
+    els.grid.innerHTML = `<div class="about__card menu-empty" style="grid-column:1 / -1;"><h3 class="section-title">${currentTab === "favorites" ? "Обране поки порожнє" : "Нічого не знайдено"}</h3></div>`;
     return;
   }
   els.grid.innerHTML = sections.map((section) => sectionTemplate(section, section.items)).join("");

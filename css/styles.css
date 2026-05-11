@@ -5345,3 +5345,69 @@ input {
     height: 68px;
   }
 }
+
+@media (max-width: 768px) {
+  .header__inner {
+    position: static;
+    display: flex;
+    justify-content: space-between;
+    min-height: 60px;
+    padding: 8px 10px;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .brand {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .brand__mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+
+  .brand__name {
+    max-width: min(170px, calc(100vw - 128px));
+    font-size: 15px;
+  }
+
+  .nav {
+    position: static;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    transform: none;
+  }
+
+  .nav__burger {
+    display: grid !important;
+    position: static;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border-color: rgba(255, 255, 255, 0.16);
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.045)),
+      rgba(8, 12, 17, 0.92);
+    box-shadow: none;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .nav__burger .burger,
+  .nav__burger .burger::before,
+  .nav__burger .burger::after {
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+
+.nav__burger {
+  display: grid !important;
+}
+
+@media (min-width: 769px) {
+  .nav__burger {
+    display: none !important;
+  }
+}

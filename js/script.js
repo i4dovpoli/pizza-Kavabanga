@@ -1039,6 +1039,27 @@ function renderPickupOrder(order) {
   </div>`;
 }
 
+function setMobileMenu(open, opts = {}) {
+  if (!els.mobile) return;
+  const isOpen = Boolean(open);
+  els.mobile.hidden = !isOpen;
+  els.mobile.setAttribute("aria-hidden", String(!isOpen));
+  els.burger?.setAttribute("aria-expanded", String(isOpen));
+  document.body.classList.toggle("mobile-menu-open", isOpen);
+
+  if (isOpen && opts.focus !== false) {
+    els.mobileClose?.focus();
+  } else if (!isOpen && opts.restoreFocus) {
+    els.burger?.focus();
+  }
+}
+
+function prepareMobileMenuLayer() {
+  if (els.mobile && els.mobile.parentElement !== document.body) {
+    document.body.appendChild(els.mobile);
+  }
+}
+
 function ensureCustomerNameField() {
   const checkoutBtn = els.checkout;
   if (!checkoutBtn || document.querySelector("[data-customer-name]")) return;
@@ -1264,7 +1285,10 @@ function init() {
       setCartQty(id, (cart.get(id) || 0) + delta);
       return;
     }
-    if (e.target?.closest?.("[data-cart-button], [data-open-cart]")) setDrawer(true);
+    if (e.target?.closest?.("[data-cart-button], [data-open-cart]")) {
+      setMobileMenu(false, { focus: false });
+      setDrawer(true);
+    }
     if (e.target?.closest?.("[data-drawer-close]")) setDrawer(false);
     if (e.target?.closest?.("[data-order-success-close]")) {
       if (els.orderSuccess) els.orderSuccess.hidden = true;
@@ -1273,15 +1297,23 @@ function init() {
 
   els.checkout?.addEventListener("click", checkout);
 
+  prepareMobileMenuLayer();
+  setMobileMenu(false, { focus: false });
   els.burger?.addEventListener("click", () => {
-    if (els.mobile) els.mobile.hidden = !els.mobile.hidden;
+    setMobileMenu(els.mobile?.hidden, { restoreFocus: true });
   });
   els.mobileClose?.addEventListener("click", () => {
-    if (els.mobile) els.mobile.hidden = true;
+    setMobileMenu(false, { restoreFocus: true });
+  });
+  els.mobile?.addEventListener("click", (e) => {
+    if (e.target === els.mobile) setMobileMenu(false, { restoreFocus: true });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && els.mobile && !els.mobile.hidden) setMobileMenu(false, { restoreFocus: true });
   });
   els.mobileLinks.forEach((a) =>
     a.addEventListener("click", () => {
-      if (els.mobile) els.mobile.hidden = true;
+      setMobileMenu(false, { focus: false });
     })
   );
 

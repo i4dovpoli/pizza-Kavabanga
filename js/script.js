@@ -191,6 +191,7 @@ function formatErr(err) {
     username_taken: "Такий логін уже зайнятий.",
     bad_credentials: "Невірний логін або пароль.",
     unauthorized: "Дія недоступна.",
+    invalid_delivery_address: "Введи адресу для доставки кур'єром.",
   };
   return messages[code] || code || "Невідома помилка";
 }
@@ -434,6 +435,7 @@ async function api(path, opts = {}) {
     return data;
   } catch (err) {
     if (err instanceof TypeError || err?.message === "Failed to fetch") return localApi(path, opts);
+    if (isOrderPath && /^(HTTP_404|HTTP_405|HTTP_501|invalid_response)$/.test(err?.message || "")) return localApi(path, opts);
     if (path.startsWith("/orders/by-code/") && err?.message === "not_found") return localApi(path, opts);
     throw err;
   }
@@ -954,8 +956,10 @@ async function checkout() {
   const customerInput = document.querySelector("[data-customer-name]");
   const customerName = String(customerInput?.value || "").trim();
   const methodInput = document.querySelector("[data-order-method-input]");
+  const checkedMethod = document.querySelector("[data-order-method-radio]:checked");
   const addressInput = document.querySelector("[data-delivery-address]");
-  const orderMethod = Object.hasOwn(ORDER_METHODS, methodInput?.value) ? methodInput.value : "pickup";
+  const rawMethod = checkedMethod?.value || methodInput?.value || "pickup";
+  const orderMethod = Object.hasOwn(ORDER_METHODS, rawMethod) ? rawMethod : "pickup";
   const deliveryAddress = String(addressInput?.value || "").trim();
   if (customerInput && customerName.length < 2) {
     customerInput.focus();
@@ -1091,13 +1095,24 @@ function ensureCustomerNameField() {
   checkoutBtn.parentElement?.insertBefore(box, checkoutBtn);
   const hiddenInput = box.querySelector("[data-order-method-input]");
   const addressWrap = box.querySelector("[data-delivery-address-wrap]");
+  const addressInput = box.querySelector("[data-delivery-address]");
+  const syncOrderMethod = (value) => {
+    const method = Object.hasOwn(ORDER_METHODS, value) ? value : "pickup";
+    hiddenInput.value = method;
+    addressWrap.hidden = method !== "courier";
+    box.querySelectorAll("[data-order-method-radio]").forEach((input) => {
+      input.checked = input.value === method;
+    });
+    if (method === "courier") addressInput?.focus();
+  };
   box.querySelectorAll("[data-order-method-radio]").forEach((radio) => {
     radio.addEventListener("change", () => {
       if (!radio.checked) return;
-      hiddenInput.value = radio.value;
-      addressWrap.hidden = radio.value !== "courier";
+      syncOrderMethod(radio.value);
     });
+    radio.closest("label")?.addEventListener("click", () => syncOrderMethod(radio.value));
   });
+  syncOrderMethod(hiddenInput.value);
 }
 
 async function renderOrdersPage() {

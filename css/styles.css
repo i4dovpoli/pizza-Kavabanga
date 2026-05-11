@@ -5921,6 +5921,10 @@ body.mobile-menu-open {
   .drawer__foot {
     display: grid;
     gap: 10px;
+    max-height: 48dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     padding: 10px 12px calc(12px + env(safe-area-inset-bottom)) !important;
     background: rgba(7, 11, 16, 0.98);
   }

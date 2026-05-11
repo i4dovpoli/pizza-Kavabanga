@@ -5468,6 +5468,11 @@ input {
   .mobile__cta {
     background:
       linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.045)),
-      rgba(10, 15, 21, 0.98);
+    rgba(10, 15, 21, 0.98);
   }
+}
+
+.nav > .cart-pill,
+.mobile__cta [data-cart-button] {
+  display: none !important;
 }

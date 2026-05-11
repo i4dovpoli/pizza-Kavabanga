@@ -441,7 +441,11 @@ async function api(path, opts = {}) {
 
 function saveCart() {
   const obj = {};
-  for (const [id, qty] of cart.entries()) obj[id] = qty;
+  for (const [id, qty] of cart.entries()) {
+    const product = productById(id);
+    const q = Math.max(0, Math.min(99, Number(qty || 0) | 0));
+    if (product && q > 0) obj[id] = q;
+  }
   localStorage.setItem(CART_KEY, JSON.stringify(obj));
 }
 
@@ -449,9 +453,10 @@ function loadCart() {
   cart.clear();
   const obj = readJson(CART_KEY, {});
   Object.entries(obj).forEach(([id, qty]) => {
-    const q = Number(qty);
-    if (q > 0) cart.set(id, q);
+    const q = Math.max(0, Math.min(99, Number(qty || 0) | 0));
+    if (productById(id) && q > 0) cart.set(id, q);
   });
+  saveCart();
 }
 
 function cartCount() {
@@ -463,7 +468,7 @@ function cartCount() {
 function cartSubtotal() {
   let s = 0;
   for (const [id, q] of cart.entries()) {
-    const p = PRODUCTS.find((x) => x.id === id);
+    const p = productById(id);
     if (p) s += p.price * q;
   }
   return s;
@@ -735,11 +740,35 @@ function syncTotals() {
   if (!els.cartTotal) return;
   const subtotal = cartSubtotal();
   els.cartTotal.textContent = money(subtotal);
+  if (els.checkout) els.checkout.disabled = cartCount() === 0;
+}
+
+function syncCartUi({ render = false } = {}) {
+  saveCart();
+  syncBadges();
+  syncTotals();
+  if (render || (els.drawer && !els.drawer.hidden)) renderCart();
+}
+
+function setCartQty(id, qty) {
+  const product = productById(id);
+  if (!product) return;
+  const next = Math.max(0, Math.min(99, Number(qty || 0) | 0));
+  if (next <= 0) cart.delete(product.id);
+  else cart.set(product.id, next);
+  syncCartUi({ render: true });
+}
+
+function addToCart(id, qty = 1) {
+  const product = productById(id);
+  if (!product) return null;
+  const current = cart.get(product.id) || 0;
+  setCartQty(product.id, current + Number(qty || 1));
+  return product;
 }
 
 function renderCart() {
   if (!els.cart) return;
-  const favoritesHtml = cartFavoritesTemplate();
   const subtotal = cartSubtotal();
   const count = cartCount();
   const progress = Math.max(12, Math.min(100, (subtotal / 900) * 100));
@@ -751,26 +780,33 @@ function renderCart() {
       </div>`
     : "";
   if (!cart.size) {
-    els.cart.innerHTML = `<div class="about__card cart-empty"><div class="section-title" style="font-size:16px;">Кошик порожній</div><p class="muted">Додай піцу з меню або швидко візьми щось з обраного.</p></div>${favoritesHtml}`;
+    els.cart.innerHTML = `<div class="about__card cart-empty"><div class="section-title" style="font-size:16px;">Кошик порожній</div><p class="muted">Додай піцу з каталогу, і вона одразу з'явиться тут.</p></div>`;
     syncTotals();
     return;
   }
   const rows = [];
   for (const [id, qty] of cart.entries()) {
-    const p = PRODUCTS.find((x) => x.id === id);
+    const p = productById(id);
     if (!p) continue;
     rows.push(`
       <div class="cart-item">
         <div class="cart-item__thumb"><img src="${p.image}" alt="" /></div>
-        <div><div class="cart-item__name">${escapeHtml(p.title)}</div><div class="cart-item__meta">${money(p.price)}</div></div>
+        <div class="cart-item__main"><div class="cart-item__name">${escapeHtml(p.title)}</div><div class="cart-item__meta">${money(p.price)} x ${qty} = ${money(p.price * qty)}</div></div>
         <div class="qty">
-          <button type="button" data-qty="-1" data-id="${id}">-</button>
+          <button type="button" data-qty="-1" data-id="${id}" aria-label="Зменшити кількість">-</button>
           <span>${qty}</span>
-          <button type="button" data-qty="1" data-id="${id}">+</button>
+          <button type="button" data-qty="1" data-id="${id}" aria-label="Збільшити кількість">+</button>
         </div>
+        <button class="cart-item__remove" type="button" data-remove="${id}" aria-label="Видалити товар">x</button>
       </div>`);
   }
-  els.cart.innerHTML = `${summaryHtml}${rows.join("")}${favoritesHtml}`;
+  if (!rows.length) {
+    cart.clear();
+    saveCart();
+    renderCart();
+    return;
+  }
+  els.cart.innerHTML = `${summaryHtml}${rows.join("")}`;
   syncTotals();
 }
 
@@ -807,6 +843,7 @@ function cartFavoritesTemplate() {
 function setDrawer(open) {
   if (!els.drawer) return;
   els.drawer.hidden = !open;
+  els.drawer.setAttribute("aria-hidden", String(!open));
   if (open) renderCart();
 }
 
@@ -894,13 +931,11 @@ function renderOrderTimeline(order) {
 
 function addItemsToCart(items) {
   items.forEach((item) => {
-    const product = PRODUCTS.find((p) => p.id === item.id);
+    const product = productById(item.id);
     if (!product) return;
     cart.set(product.id, (cart.get(product.id) || 0) + Number(item.qty || 1));
   });
-  saveCart();
-  syncBadges();
-  renderCart();
+  syncCartUi({ render: true });
   setDrawer(true);
 }
 
@@ -1202,34 +1237,28 @@ function init() {
     const add = e.target?.closest?.("[data-add]");
     if (add) {
       const id = add.getAttribute("data-add");
-      cart.set(id, (cart.get(id) || 0) + 1);
-      saveCart();
-      syncBadges();
+      addToCart(id);
       toast("Додано в кошик");
       return;
     }
     const favoriteAdd = e.target?.closest?.("[data-cart-favorite-add]");
     if (favoriteAdd) {
       const id = favoriteAdd.getAttribute("data-cart-favorite-add");
-      const product = PRODUCTS.find((p) => p.id === id);
+      const product = addToCart(id);
       if (!product) return;
-      cart.set(id, (cart.get(id) || 0) + 1);
-      saveCart();
-      syncBadges();
-      renderCart();
       toast(`${product.title} додано`);
+      return;
+    }
+    const remove = e.target?.closest?.("[data-remove]");
+    if (remove) {
+      setCartQty(remove.getAttribute("data-remove"), 0);
       return;
     }
     const q = e.target?.closest?.("[data-qty][data-id]");
     if (q) {
       const id = q.getAttribute("data-id");
       const delta = Number(q.getAttribute("data-qty"));
-      const next = (cart.get(id) || 0) + delta;
-      if (next <= 0) cart.delete(id);
-      else cart.set(id, next);
-      saveCart();
-      syncBadges();
-      renderCart();
+      setCartQty(id, (cart.get(id) || 0) + delta);
       return;
     }
     if (e.target?.closest?.("[data-cart-button]")) setDrawer(true);

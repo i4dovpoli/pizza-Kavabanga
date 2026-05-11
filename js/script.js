@@ -681,6 +681,7 @@ function cardTemplate(p) {
           <button class="favorite-btn ${activeFavorite ? "is-active" : ""}" type="button" data-favorite="${p.id}" aria-label="Обране">${activeFavorite ? "♥" : "♡"}</button>
           <button class="card-cart-btn" type="button" data-open-cart aria-label="Відкрити кошик">
             <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="currentColor" d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM6.2 6h15.2a1 1 0 0 1 1 1.2l-1.2 6.4a2 2 0 0 1-2 1.6H8.1a2 2 0 0 1-2-1.5L4.3 2.9H2a1 1 0 1 1 0-2h3a1 1 0 0 1 1 .8L6.2 6Zm1 2 1 5h11.1l1-5H7.2Z" /></svg>
+            <span class="card-cart-btn__badge" data-card-cart-count hidden>0</span>
           </button>
           <button class="add" type="button" data-add="${p.id}">Додати</button>
         </div>
@@ -729,6 +730,7 @@ function renderGrid() {
     return;
   }
   els.grid.innerHTML = sections.map((section) => sectionTemplate(section, section.items)).join("");
+  syncBadges();
 }
 
 function syncBadges() {
@@ -736,6 +738,11 @@ function syncBadges() {
   els.cartCounts.forEach((b) => {
     b.textContent = String(n);
     b.hidden = n === 0;
+  });
+  document.querySelectorAll("[data-card-cart-count]").forEach((b) => {
+    b.textContent = String(n);
+    b.hidden = n === 0;
+    b.closest(".card-cart-btn")?.classList.toggle("has-items", n > 0);
   });
 }
 

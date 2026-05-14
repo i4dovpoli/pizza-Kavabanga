@@ -10,6 +10,8 @@ const RETURN_TO_KEY = "kavabanga:returnTo";
 const LOCAL_USERS_KEY = "kavabanga:localUsers";
 const LOCAL_ORDERS_KEY = "kavabanga:localOrders";
 const FAVORITES_KEY = "kavabanga:favorites";
+const LIKE_COUNTS_KEY = "kavabanga:likeCounts";
+const LIKE_CLIENT_KEY = "kavabanga:likeClient";
 const ORDER_METHODS = {
   "dine-in": "В закладі",
   pickup: "Самовивіз",
@@ -168,6 +170,7 @@ let currentTab = "all";
 let query = "";
 let authMode = "login";
 let lastRenderedOrders = [];
+let likeCounts = {};
 const cart = new Map();
 const authState = {
   token: localStorage.getItem(AUTH_TOKEN_KEY) || "",
@@ -372,6 +375,19 @@ async function localApi(path, opts = {}) {
     return { ok: true, order, local: true };
   }
 
+  if (path === "/likes") {
+    return { ok: true, likes: normalizedLikeCounts(readJson(LIKE_COUNTS_KEY, {})), local: true };
+  }
+
+  if (path.startsWith("/likes/")) {
+    const id = decodeURIComponent(path.split("/").pop() || "");
+    if (!productById(id)) throw new Error("not_found");
+    const counts = normalizedLikeCounts(readJson(LIKE_COUNTS_KEY, {}));
+    counts[id] = Math.max(0, (Number(counts[id] || 0) | 0) + (body.liked ? 1 : -1));
+    writeJson(LIKE_COUNTS_KEY, counts);
+    return { ok: true, likes: counts, local: true };
+  }
+
   const user = currentLocalUser();
   if (!user) throw new Error("unauthorized");
 
@@ -480,6 +496,29 @@ function orderItemsTotal(items = []) {
   return items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.qty || 0), 0);
 }
 
+function likeClientId() {
+  let id = localStorage.getItem(LIKE_CLIENT_KEY) || "";
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    localStorage.setItem(LIKE_CLIENT_KEY, id);
+  }
+  return id;
+}
+
+function normalizedLikeCounts(raw) {
+  const counts = {};
+  if (!raw || typeof raw !== "object") return counts;
+  Object.entries(raw).forEach(([id, count]) => {
+    if (productById(id)) counts[id] = Math.max(0, Number(count || 0) | 0);
+  });
+  return counts;
+}
+
+function setLikeCounts(nextCounts) {
+  likeCounts = normalizedLikeCounts(nextCounts);
+  writeJson(LIKE_COUNTS_KEY, likeCounts);
+}
+
 function favoriteIds() {
   return readJson(FAVORITES_KEY, []);
 }
@@ -492,13 +531,43 @@ function isFavorite(id) {
   return favoriteIds().includes(id);
 }
 
-function toggleFavorite(id) {
+async function toggleFavorite(id) {
   const ids = favoriteIds();
   const next = ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id];
+  const liked = next.includes(id);
   setFavoriteIds(next);
+  likeCounts[id] = Math.max(0, (Number(likeCounts[id] || 0) | 0) + (liked ? 1 : -1));
   renderGrid();
   updateProfileFavorites();
-  toast(next.includes(id) ? "Додано в обране" : "Прибрано з обраного");
+  toast(liked ? "Лайк додано" : "Лайк прибрано");
+  try {
+    const data = await api(`/likes/${encodeURIComponent(id)}`, {
+      method: "POST",
+      body: { liked, clientId: likeClientId() },
+    });
+    setLikeCounts(data.likes || {});
+    renderGrid();
+  } catch (e) {
+    likeCounts[id] = Math.max(0, (Number(likeCounts[id] || 0) | 0) + (liked ? -1 : 1));
+    setFavoriteIds(ids);
+    renderGrid();
+    updateProfileFavorites();
+    toast("Не вдалося зберегти лайк");
+  }
+}
+
+function productLikeCount(product) {
+  return Math.max(0, Number(likeCounts[product.id] || 0) | 0);
+}
+
+async function loadLikes() {
+  setLikeCounts(readJson(LIKE_COUNTS_KEY, {}));
+  renderGrid();
+  try {
+    const data = await api("/likes");
+    setLikeCounts(data.likes || {});
+    renderGrid();
+  } catch {}
 }
 
 function cacheUser(user) {
@@ -580,7 +649,7 @@ function updateProfileFavorites() {
     .map((id) => PRODUCTS.find((product) => product.id === id))
     .filter(Boolean);
   if (!items.length) {
-    els.profileFavorites.innerHTML = `<span class="muted">Обране поки порожнє</span>`;
+    els.profileFavorites.innerHTML = `<span class="muted">Лайків поки немає</span>`;
     return;
   }
   els.profileFavorites.innerHTML = items.map((item) => `<span class="favorite-chip">${item.title}</span>`).join("");
@@ -662,6 +731,7 @@ async function loadMe() {
 
 function cardTemplate(p) {
   const activeFavorite = isFavorite(p.id);
+  const likes = productLikeCount(p);
   const typeLabel =
     p.type === "drink" ? "Напій" : p.type === "combo" ? "Бокс" : p.type === "coffee" ? "Кава" : p.type === "tea" ? "Чай" : "Піца";
   const includes = Array.isArray(p.includes) ? `<div class="card__includes">${p.includes.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}</div>` : "";
@@ -680,7 +750,10 @@ function cardTemplate(p) {
       <div class="card__foot">
         <div class="price">${money(p.price)}</div>
         <div class="card__actions">
-          <button class="favorite-btn ${activeFavorite ? "is-active" : ""}" type="button" data-favorite="${p.id}" aria-label="Обране">${activeFavorite ? "♥" : "♡"}</button>
+          <button class="favorite-btn ${activeFavorite ? "is-active" : ""}" type="button" data-favorite="${p.id}" aria-label="Лайк">
+            <span aria-hidden="true">${activeFavorite ? "♥" : "♡"}</span>
+            <b>${likes}</b>
+          </button>
           <button class="card-cart-btn" type="button" data-open-cart aria-label="Відкрити кошик">
             <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="currentColor" d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM6.2 6h15.2a1 1 0 0 1 1 1.2l-1.2 6.4a2 2 0 0 1-2 1.6H8.1a2 2 0 0 1-2-1.5L4.3 2.9H2a1 1 0 1 1 0-2h3a1 1 0 0 1 1 .8L6.2 6Zm1 2 1 5h11.1l1-5H7.2Z" /></svg>
             <span class="card-cart-btn__badge" data-card-cart-count hidden>0</span>
@@ -722,19 +795,18 @@ function sectionTemplate(section, items) {
 function renderGrid() {
   if (!els.grid) return;
   const q = query.toLowerCase();
-  const favoriteSet = new Set(favoriteIds());
   const sections = MENU_SECTIONS.map((section) => ({
     ...section,
     items: PRODUCTS.filter(
       (p) =>
         p.type === section.type &&
-        (currentTab === "all" || currentTab === section.type || (currentTab === "favorites" && favoriteSet.has(p.id))) &&
+        (currentTab === "all" || currentTab === section.type) &&
         productMatchesQuery(p, q)
     ),
   })).filter((section) => section.items.length);
 
   if (!sections.length) {
-    els.grid.innerHTML = `<div class="about__card menu-empty" style="grid-column:1 / -1;"><h3 class="section-title">${currentTab === "favorites" ? "Обране поки порожнє" : "Нічого не знайдено"}</h3></div>`;
+    els.grid.innerHTML = `<div class="about__card menu-empty" style="grid-column:1 / -1;"><h3 class="section-title">Нічого не знайдено</h3></div>`;
     return;
   }
   els.grid.innerHTML = sections.map((section) => sectionTemplate(section, section.items)).join("");
@@ -836,13 +908,13 @@ function cartFavoritesTemplate() {
 
   if (!favorites.length) {
     return `<div class="cart-favorites cart-favorites--empty">
-      <div class="cart-favorites__head"><strong>Обране</strong><span>серце біля товару</span></div>
+      <div class="cart-favorites__head"><strong>Лайки</strong><span>серце біля товару</span></div>
       <p>Натисни ♡ у меню, і улюблена піца чи напій з'явиться тут.</p>
     </div>`;
   }
 
   return `<div class="cart-favorites">
-    <div class="cart-favorites__head"><strong>Обране</strong><span>швидко додати</span></div>
+    <div class="cart-favorites__head"><strong>Лайки</strong><span>швидко додати</span></div>
     <div class="cart-favorites__list">
       ${favorites
         .map(
@@ -1257,6 +1329,7 @@ function init() {
   loadCart();
   syncBadges();
   renderGrid();
+  loadLikes();
   syncTotals();
 
   els.tabs.forEach((b) =>

@@ -100,6 +100,12 @@ function ensureSchema() {
     price INTEGER NOT NULL,
     qty INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS product_likes (
+    product_id TEXT NOT NULL,
+    client_id TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (product_id, client_id)
+  );
   `);
 
   const orderCols = tableColumns("orders");
@@ -204,6 +210,16 @@ function cleanDeliveryAddress(raw) {
   return String(raw || "").trim().replace(/\s+/g, " ").slice(0, 120);
 }
 
+function cleanProductId(raw) {
+  const id = String(raw || "").trim();
+  return PRODUCTS.has(id) ? id : "";
+}
+
+function cleanClientId(raw) {
+  const id = String(raw || "").trim();
+  return /^[a-zA-Z0-9_-]{12,80}$/.test(id) ? id : "";
+}
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }
@@ -240,6 +256,14 @@ function itemSummary(orderId) {
   return orderItems(orderId)
     .map((item) => `${item.title} x ${item.qty}`)
     .join(", ");
+}
+
+function likeCountsPayload() {
+  const counts = {};
+  for (const row of db.prepare("SELECT product_id, COUNT(*) AS count FROM product_likes GROUP BY product_id").all()) {
+    if (PRODUCTS.has(row.product_id)) counts[row.product_id] = Number(row.count || 0);
+  }
+  return counts;
 }
 
 function tsvCell(value) {
@@ -323,6 +347,26 @@ app.use(["/server", "/node_modules", "/java", "/__pycache__"], (_req, res) => {
 app.use(express.static(process.cwd(), { dotfiles: "ignore" }));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+app.get("/likes", (_req, res) => {
+  res.json({ ok: true, likes: likeCountsPayload() });
+});
+
+app.post("/likes/:id", (req, res) => {
+  const productId = cleanProductId(req.params.id);
+  const clientId = cleanClientId(req.body?.clientId);
+  const liked = Boolean(req.body?.liked);
+  if (!productId) return res.status(404).json({ ok: false, error: "not_found" });
+  if (!clientId) return res.status(400).json({ ok: false, error: "invalid_client" });
+
+  if (liked) {
+    db.prepare("INSERT OR IGNORE INTO product_likes (product_id, client_id, created_at) VALUES (?, ?, ?)").run(productId, clientId, nowIso());
+  } else {
+    db.prepare("DELETE FROM product_likes WHERE product_id=? AND client_id=?").run(productId, clientId);
+  }
+
+  res.json({ ok: true, likes: likeCountsPayload() });
+});
 
 app.post("/auth/register", (req, res) => {
   const username = normalizeUsername(req.body?.username);

@@ -1180,7 +1180,7 @@ input {
 }
 
 .favorite-btn {
-  width: 44px;
+  min-width: 58px;
   height: 44px;
   flex: 0 0 auto;
   border-radius: 8px;
@@ -1188,9 +1188,17 @@ input {
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.88);
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9px;
   font-size: 20px;
+  line-height: 1;
+}
+
+.favorite-btn b {
+  font-size: 12px;
   line-height: 1;
 }
 
@@ -5956,5 +5964,18 @@ body.mobile-menu-open {
   .drawer__foot .btn {
     min-height: 54px;
     border-radius: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .card__actions {
+    grid-template-columns: minmax(62px, auto) 48px minmax(0, 1fr);
+  }
+
+  .favorite-btn {
+    width: auto !important;
+    min-width: 62px;
+    height: 50px;
+    border-radius: 15px;
   }
 }

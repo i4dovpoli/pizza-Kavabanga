@@ -754,7 +754,7 @@ function cardTemplate(p) {
             <span aria-hidden="true">${activeFavorite ? "♥" : "♡"}</span>
             <b>${likes}</b>
           </button>
-          <button class="card-cart-btn" type="button" data-open-cart aria-label="Відкрити кошик">
+          <button class="card-cart-btn" type="button" data-open-cart data-cart-button aria-label="Відкрити кошик">
             <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true"><path fill="currentColor" d="M7 18a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4ZM6.2 6h15.2a1 1 0 0 1 1 1.2l-1.2 6.4a2 2 0 0 1-2 1.6H8.1a2 2 0 0 1-2-1.5L4.3 2.9H2a1 1 0 1 1 0-2h3a1 1 0 0 1 1 .8L6.2 6Zm1 2 1 5h11.1l1-5H7.2Z" /></svg>
             <span class="card-cart-btn__badge" data-card-cart-count hidden>0</span>
           </button>
@@ -797,11 +797,23 @@ function openCartDrawer() {
   setDrawer(true);
 }
 
+function cartTriggerFromEvent(event) {
+  return event.target?.closest?.("[data-open-cart], [data-cart-button]");
+}
+
+function handleCartTrigger(event) {
+  const trigger = cartTriggerFromEvent(event);
+  if (!trigger) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  openCartDrawer();
+  return true;
+}
+
 function bindCardCartButtons() {
   document.querySelectorAll("[data-open-cart]").forEach((button) => {
     button.addEventListener("click", (event) => {
-      event.preventDefault();
-      openCartDrawer();
+      handleCartTrigger(event);
     });
   });
 }
@@ -1359,6 +1371,9 @@ function init() {
     renderGrid();
   });
 
+  document.addEventListener("pointerup", handleCartTrigger, true);
+  document.addEventListener("click", handleCartTrigger, true);
+
   document.addEventListener("click", (e) => {
     const favorite = e.target?.closest?.("[data-favorite]");
     if (favorite) {
@@ -1401,7 +1416,7 @@ function init() {
       setCartQty(id, (cart.get(id) || 0) + delta);
       return;
     }
-    if (e.target?.closest?.("[data-cart-button], [data-open-cart]")) {
+    if (cartTriggerFromEvent(e)) {
       openCartDrawer();
     }
     if (e.target?.closest?.("[data-drawer-close]")) setDrawer(false);

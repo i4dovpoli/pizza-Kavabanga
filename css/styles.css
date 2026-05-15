@@ -6024,11 +6024,20 @@ body::before {
 .header,
 main,
 .footer,
-.drawer,
-.mobile,
 .skip-link {
   position: relative;
   z-index: 1;
+}
+
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+.mobile {
+  position: fixed;
+  inset: 0;
 }
 
 .home-page,

@@ -5983,14 +5983,13 @@ body.mobile-menu-open {
 /* Global site background */
 :root {
   --site-bg:
-    radial-gradient(1100px 620px at 84% 8%, rgba(255, 122, 24, 0.24), transparent 64%),
-    radial-gradient(900px 560px at 8% 18%, rgba(49, 210, 111, 0.17), transparent 62%),
-    linear-gradient(128deg, transparent 0 19%, rgba(255, 122, 24, 0.13) 19% 20.2%, transparent 20.2% 46%, rgba(49, 210, 111, 0.1) 46% 47.2%, transparent 47.2% 72%, rgba(255, 122, 24, 0.08) 72% 73%, transparent 73%),
-    linear-gradient(180deg, #05080d 0%, #0c1218 46%, #06090f 100%);
+    radial-gradient(1200px 760px at 50% -10%, rgba(255, 122, 24, 0.08), transparent 68%),
+    radial-gradient(1100px 720px at 50% 18%, rgba(49, 210, 111, 0.06), transparent 72%),
+    linear-gradient(180deg, #070b10 0%, #0b1016 48%, #070b10 100%);
 }
 
 html {
-  background: #06090f;
+  background: #070b10;
 }
 
 body,
@@ -5999,35 +5998,9 @@ body,
 .staff-page,
 .pickup-page,
 .about-page {
-  background-color: #06090f;
+  background-color: #070b10;
   background-image: var(--site-bg);
-  background-attachment: fixed, fixed, fixed, fixed;
-  background-position: 84% 8%, 8% 18%, 50% 50%, center;
-  background-size: 100% 100%, 100% 100%, 165% 165%, 100% 100%;
-  animation: siteBackgroundFlow 18s cubic-bezier(0.45, 0, 0.2, 1) infinite alternate;
-}
-
-@keyframes siteBackgroundFlow {
-  0% {
-    background-position: 84% 8%, 8% 18%, 0% 50%, center;
-  }
-
-  48% {
-    background-position: 76% 13%, 14% 12%, 58% 42%, center;
-  }
-
-  100% {
-    background-position: 88% 4%, 4% 24%, 100% 58%, center;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body,
-  .home-page,
-  .menu-page,
-  .staff-page,
-  .pickup-page,
-  .about-page {
-    animation: none !important;
-  }
+  background-attachment: fixed;
+  background-position: center top;
+  background-size: cover;
 }

@@ -792,6 +792,20 @@ function sectionTemplate(section, items) {
     </section>`;
 }
 
+function openCartDrawer() {
+  setMobileMenu(false, { focus: false });
+  setDrawer(true);
+}
+
+function bindCardCartButtons() {
+  document.querySelectorAll("[data-open-cart]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      openCartDrawer();
+    });
+  });
+}
+
 function renderGrid() {
   if (!els.grid) return;
   const q = query.toLowerCase();
@@ -810,6 +824,7 @@ function renderGrid() {
     return;
   }
   els.grid.innerHTML = sections.map((section) => sectionTemplate(section, section.items)).join("");
+  bindCardCartButtons();
   syncBadges();
 }
 
@@ -1387,8 +1402,7 @@ function init() {
       return;
     }
     if (e.target?.closest?.("[data-cart-button], [data-open-cart]")) {
-      setMobileMenu(false, { focus: false });
-      setDrawer(true);
+      openCartDrawer();
     }
     if (e.target?.closest?.("[data-drawer-close]")) setDrawer(false);
     if (e.target?.closest?.("[data-order-success-close]")) {
